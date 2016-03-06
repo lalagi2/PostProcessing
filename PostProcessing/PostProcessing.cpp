@@ -1,13 +1,10 @@
 #include "stdafx.h"
 #include <iostream>
 
-// GLEW
 #include <GL/glew.h>
-
-// GLFW
 #include <GLFW/glfw3.h>
+#include "FreeImage.h"
 
-// Other includes
 #include "Shader.h"
 #include "Camera.h"
 
