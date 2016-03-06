@@ -1,224 +1,109 @@
 #include "stdafx.h"
 #include <iostream>
-#include <GL/glew.h> 
-#include <GLFW/glfw3.h> 
-#include "FreeImage.h"
 
-void loadImage(const char *filename)
+// GLEW
+#include <GL/glew.h>
+
+// GLFW
+#include <GLFW/glfw3.h>
+
+// Other includes
+#include "Shader.h"
+
+
+// Function prototypes
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
+
+// Window dimensions
+const GLuint WIDTH = 800, HEIGHT = 600;
+
+// The MAIN function, from here we start the application and run the game loop
+int main()
 {
-	FIBITMAP *dib1 = nullptr;
+	// Init GLFW
+	glfwInit();
+	// Set all the required options for GLFW
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-	FREE_IMAGE_FORMAT fif = FreeImage_GetFIFFromFilename(filename);
-
-	dib1 = FreeImage_Load(fif, filename, HDR_DEFAULT);
-
-	if (!dib1)
-	{
-		std::cout << "Failed to load this image: " << filename << std::endl;
-		exit(0);
-	}
-
-	int nWidth = FreeImage_GetWidth(dib1);
-	int nHeight = FreeImage_GetHeight(dib1);
-	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, nWidth, nHeight, 0, GL_RGB, GL_FLOAT, (void*)FreeImage_GetBits(dib1));
-
-	FreeImage_Unload(dib1);
-
-	return;
-}
-
-int main() 
-{
-	// Start GL context and O/S window using the GLFW helper library
-	if (!glfwInit()) 
-	{
-		std::cout << "ERROR: could not start GLFW3";
-
-		return 1;
-	}
-
-	GLFWwindow* window = glfwCreateWindow(1366, 768, "Post Processing", NULL, NULL);
-	glfwWindowHint(GLFW_DEPTH_BITS, 32);
-
-	if (!window) 
-	{
-		std::cout << "ERROR: could not open window with GLFW3" << std::endl;
-		glfwTerminate();
-
-		return 1;
-	}
-
+	// Create a GLFWwindow object that we can use for GLFW's functions
+	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "LearnOpenGL", nullptr, nullptr);
 	glfwMakeContextCurrent(window);
 
-	// Start GLEW extension handler
+	// Set the required callback functions
+	glfwSetKeyCallback(window, key_callback);
+
+	// Set this to true so GLEW knows to use a modern approach to retrieving function pointers and extensions
 	glewExperimental = GL_TRUE;
+	// Initialize GLEW to setup the OpenGL Function pointers
 	glewInit();
-	 
-	// Get version info
-	const GLubyte* renderer = glGetString(GL_RENDERER);
-	const GLubyte* version = glGetString(GL_VERSION);
-	printf("Renderer: %s\n", renderer);
-	printf("OpenGL version supported %s\n", version);
 
-	glEnable(GL_DEPTH_TEST);
+	// Define the viewport dimensions
+	glViewport(0, 0, WIDTH, HEIGHT);
 
-	GLuint vao;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
+	// Build and compile our shader program
+	Shader ourShader("default.vs", "default.frag");
 
-	GLuint vbo = 0;
-	glGenBuffers(1, &vbo);
-
-	GLfloat vertices[] = 
-	{
-		//  Position          Color          Texcoords
-		-1.0f, 1.0f, 0.5f, 	1.0f, 0.0f, 0.0f,	1.0f, 1.0f, // Top-left
-		1.0f, 1.0f, 0.5f,	0.0f, 1.0f, 0.0f,	0.0f, 1.0f, // Top-right
-		1.0f, -1.0f, 0.5f,	0.0f, 0.0f, 1.0f,	0.0f, 0.0f, // Bottom-right
-		-1.0f, -1.0f, 0.5f,	1.0f, 1.0f, 1.0f,	1.0f, 0.0f  // Bottom-left
+	// Set up vertex data (and buffer(s)) and attribute pointers
+	GLfloat vertices[] = {
+		// Positions         // Colors
+		0.5f, -0.5f, 0.0f,	1.0f, 0.0f, 0.0f,  // Bottom Right
+		-0.5f, -0.5f, 0.0f,	0.0f, 1.0f, 0.0f,  // Bottom Left
+		0.0f, 0.5f, 0.0f,	0.0f, 0.0f, 1.0f   // Top 
 	};
+	GLuint VBO, VAO;
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+	// Bind the Vertex Array Object first, then bind and set vertex buffer(s) and attribute pointer(s).
+	glBindVertexArray(VAO);
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-	// Create an element array
-	GLuint ebo;
-	glGenBuffers(1, &ebo);
+	// Position attribute
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
+	glEnableVertexAttribArray(0);
+	// Color attribute
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
 
-	GLuint elements[] = 
+	glBindVertexArray(0); // Unbind VAO
+
+
+	// Game loop
+	while (!glfwWindowShouldClose(window))
 	{
-		0, 1, 2,
-		2, 3, 0
-	};
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
-
-	const char* vertex_shader =
-		"#version 450\n" 
-
-		"in vec3 position;"
-		"in vec3 color;"
-		"in vec2 texcoord;"
-		"out vec3 Color;"
-		"out vec2 Texcoord;"
-		
-		"void main()"
-		"{"
-		"    Color = color;"
-		"    Texcoord = texcoord;"
-		"    gl_Position = vec4(position, 1.0);"
-		"}";
-
-	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertex_shader, NULL);
-	glCompileShader(vertexShader);
-
-	GLint success;
-	GLchar infoLog[512];
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-
-	if (!success)
-	{
-		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::VERTEX::COMPILAfTION_FAILED\n" << infoLog << std::endl;
-	}
-
-	const char* fragment_shader =
-		"#version 450\n"
-		
-		"in vec3 Color;"
-		"in vec2 Texcoord;"
-		"out vec4 outColor;"
-		"uniform sampler2D text;"
-
-		"void main()"
-		"{"
-		"    outColor = texture(text, Texcoord);"
-		"}";
-
-	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragment_shader, NULL);
-	glCompileShader(fragmentShader);
-
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-
-	if (!success)
-	{
-		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-
-	GLuint shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, fragmentShader);
-	glAttachShader(shaderProgram, vertexShader);
-	glLinkProgram(shaderProgram);
-
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if (!success) 
-	{
-		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::LINKING\n" << infoLog << std::endl;
-	}
-
-	glUseProgram(shaderProgram);
-
-	// Specify the layout of the vertex data
-	GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
-	glEnableVertexAttribArray(posAttrib);
-	glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), 0);
-
-	GLint colAttrib = glGetAttribLocation(shaderProgram, "color");
-	glEnableVertexAttribArray(colAttrib);
-	glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-
-	GLint texAttrib = glGetAttribLocation(shaderProgram, "texcoord");
-	glEnableVertexAttribArray(texAttrib);
-	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
-
-	// Load textures
-	GLuint textures[1];
-	glGenTextures(1, textures);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, textures[0]);
-		loadImage("PaperMill_E_3k.hdr");
-	glUniform1i(glGetUniformLocation(shaderProgram, "text"), 0);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	while (!glfwWindowShouldClose(window)) 
-	{
-		// Clear the screen to black
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		// Draw a rectangle from the 2 triangles using 6 indices
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
+		// Check if any events have been activiated (key pressed, mouse moved etc.) and call corresponding response functions
 		glfwPollEvents();
 
-		// Put the stuff we've been drawing onto the display
+		// Render
+		// Clear the colorbuffer
+		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		// Draw the triangle
+		ourShader.Use();
+		glBindVertexArray(VAO);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glBindVertexArray(0);
+
+		// Swap the screen buffers
 		glfwSwapBuffers(window);
 	}
-
-	glDeleteTextures(1, textures);
-
-	glDeleteProgram(shaderProgram);
-	glDeleteShader(fragmentShader);
-	glDeleteShader(vertexShader);
-
-	glDeleteBuffers(1, &ebo);
-	glDeleteBuffers(1, &vbo);
-
-	glDeleteVertexArrays(1, &vao);
-
-	// Close GL context and any other GLFW resources
+	// Properly de-allocate all resources once they've outlived their purpose
+	glDeleteVertexArrays(1, &VAO);
+	glDeleteBuffers(1, &VBO);
+	// Terminate GLFW, clearing any resources allocated by GLFW.
 	glfwTerminate();
 
 	return 0;
+}
+
+// Is called whenever a key is pressed/released via GLFW
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
+{
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, GL_TRUE);
 }
