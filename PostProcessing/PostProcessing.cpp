@@ -9,17 +9,19 @@
 
 // Other includes
 #include "Shader.h"
+#include "Camera.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
 
 // Function prototypes
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 
 // Window dimensions
 const GLuint WIDTH = 800, HEIGHT = 600;
+
+Camera camera(glm::vec3(0.0f, 0.0f, -2.0f));
 
 // The MAIN function, from here we start the application and run the game loop
 int main()
@@ -77,7 +79,6 @@ int main()
 
 	glBindVertexArray(0); // Unbind VAO
 
-
 	// Game loop
 	while (!glfwWindowShouldClose(window))
 	{
@@ -87,18 +88,30 @@ int main()
 		// Render
 		// Clear the colorbuffer
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT| GL_DEPTH_BUFFER_BIT);
 
 		// Draw the triangle
 		ourShader.Use();	
+
 		// Create transformations
+		glm::mat4 model;
+		glm::mat4 view;
+		glm::mat4 projection;
 
-		glm::mat4 transform;
-		transform = glm::translate(transform, glm::vec3(0.5f, -0.2f, 0.0f));
+		model = glm::rotate(model, (GLfloat)glfwGetTime() * 5.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+		view = glm::lookAt(glm::vec3(0.0f, 0.0f, -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		projection = glm::perspective(glm::radians(45.0f), (GLfloat)WIDTH / (GLfloat)HEIGHT, 0.1f, 100.0f);
 
-		// Get matrix's uniform location and set matrix
-		GLint transformLoc = glGetUniformLocation(ourShader.Program, "transform");
-		glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
+		// Get their uniform location
+		GLint modelLoc = glGetUniformLocation(ourShader.Program, "model");
+		GLint viewLoc = glGetUniformLocation(ourShader.Program, "view");
+		GLint projLoc = glGetUniformLocation(ourShader.Program, "projection");
+		
+		// Pass them to the shaders
+		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+		// Note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
+		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
 		glBindVertexArray(VAO);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -107,6 +120,7 @@ int main()
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
 	}
+
 	// Properly de-allocate all resources once they've outlived their purpose
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
