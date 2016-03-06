@@ -10,6 +10,10 @@
 // Other includes
 #include "Shader.h"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 
 // Function prototypes
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -47,12 +51,14 @@ int main()
 	Shader ourShader("default.vs", "default.frag");
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
-	GLfloat vertices[] = {
+	GLfloat vertices[] = 
+	{
 		// Positions         // Colors
 		0.5f, -0.5f, 0.0f,	1.0f, 0.0f, 0.0f,  // Bottom Right
 		-0.5f, -0.5f, 0.0f,	0.0f, 1.0f, 0.0f,  // Bottom Left
 		0.0f, 0.5f, 0.0f,	0.0f, 0.0f, 1.0f   // Top 
 	};
+
 	GLuint VBO, VAO;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
@@ -84,7 +90,16 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// Draw the triangle
-		ourShader.Use();
+		ourShader.Use();	
+		// Create transformations
+
+		glm::mat4 transform;
+		transform = glm::translate(transform, glm::vec3(0.5f, -0.2f, 0.0f));
+
+		// Get matrix's uniform location and set matrix
+		GLint transformLoc = glGetUniformLocation(ourShader.Program, "transform");
+		glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
+
 		glBindVertexArray(VAO);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 		glBindVertexArray(0);
