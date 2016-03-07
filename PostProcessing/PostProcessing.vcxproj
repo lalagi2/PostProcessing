@@ -99,6 +99,8 @@
   <ItemGroup>
     <None Include="default.frag" />
     <None Include="default.vs" />
+    <None Include="lighting.frag" />
+    <None Include="lighting.vs" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -50,5 +50,11 @@
     <None Include="default.vs">
       <Filter>Shader</Filter>
     </None>
+    <None Include="lighting.frag">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="lighting.vs">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
 </Project>
