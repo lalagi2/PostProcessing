@@ -1,14 +1,12 @@
 #pragma once
 
-// Std. Includes
 #include <vector>
+#include <iostream>
 
 // GL Includes
 #include <GL/glew.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
-
 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 enum Camera_Movement {
@@ -19,11 +17,11 @@ enum Camera_Movement {
 };
 
 // Default camera values
-const GLfloat YAW = -90.0f;
-const GLfloat PITCH = 0.0f;
+const GLfloat YAW = -254.0f;
+const GLfloat PITCH = -15.0f;
 const GLfloat SPEED = 3.0f;
 const GLfloat SENSITIVTY = 0.25f;
-const GLfloat ZOOM = 45.0f;
+const GLfloat ZOOM = 20.0f;
 
 // An abstract camera class that processes input and calculates the corresponding Eular Angles, Vectors and Matrices for use in OpenGL
 class Camera
@@ -73,13 +71,13 @@ public:
 	{
 		GLfloat velocity = this->MovementSpeed * deltaTime;
 		if (direction == FORWARD)
-			this->Position += this->Front * velocity;
-		if (direction == BACKWARD)
 			this->Position -= this->Front * velocity;
+		if (direction == BACKWARD)
+			this->Position += this->Front * velocity;
 		if (direction == LEFT)
-			this->Position -= this->Right * velocity;
-		if (direction == RIGHT)
 			this->Position += this->Right * velocity;
+		if (direction == RIGHT)
+			this->Position -= this->Right * velocity;
 	}
 
 	// Processes input received from a mouse input system. Expects the offset value in both the x and y direction.
@@ -90,6 +88,9 @@ public:
 
 		this->Yaw += xoffset;
 		this->Pitch += yoffset;
+
+		std::cout << this->Yaw << " " << this->Pitch << std::endl;
+	
 
 		// Make sure that when pitch is out of bounds, screen doesn't get flipped
 		if (constrainPitch)

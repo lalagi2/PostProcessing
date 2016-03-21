@@ -256,7 +256,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	}
 
 	GLfloat xoffset = xpos - lastX;
-	GLfloat yoffset = lastY - ypos;  // Reversed since y-coordinates go from bottom to left
+	GLfloat yoffset = ypos - lastY;  // Reversed since y-coordinates go from bottom to left
 
 	lastX = xpos;
 	lastY = ypos;
