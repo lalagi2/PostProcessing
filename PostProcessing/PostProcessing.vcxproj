@@ -104,6 +104,8 @@
     <None Include="lighting.frag" />
     <None Include="lighting.vs" />
     <None Include="packages.config" />
+    <None Include="texture.frag" />
+    <None Include="texture.vs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

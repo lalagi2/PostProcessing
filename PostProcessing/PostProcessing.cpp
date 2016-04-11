@@ -148,7 +148,7 @@ int main()
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 
-	Framebuffer* fullScene = new Framebuffer(WIDTH, HEIGHT, 1);
+	Framebuffer* fullSceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 1);
 
 	// Game loop
 	while (!glfwWindowShouldClose(window))
@@ -162,7 +162,7 @@ int main()
 		glfwPollEvents();
 		do_movement();
 
-		fullScene->setRenderTarget();
+		fullSceneFrameBuffer->setRenderTarget();
 
 		// Clear the colorbuffer
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -212,7 +212,23 @@ int main()
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 		glBindVertexArray(0);
 
-		fullScene->disableRenderTarget();
+		fullSceneFrameBuffer->disableRenderTarget();
+
+		// Load textures
+		GLuint textures[1];
+		glGenTextures(1, textures);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, textures[0]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16, WIDTH, WIDTH, 0, GL_RGB, GL_FLOAT, (void*)FreeImage_GetBits(dib1));
+		glUniform1i(glGetUniformLocation(shaderProgram, "text"), 0);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+
 
 
 
