@@ -16,6 +16,7 @@
 // Other includes
 #include "Shader.h"
 #include "Camera.h"
+#include "framebuffer.hpp"
 
 
 // Function prototypes
@@ -74,8 +75,9 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 
 	// Build and compile our shader program
-	Shader lightingShader("default.vs", "default.frag");
+	Shader defaultShader("default.vs", "default.frag");
 	Shader lampShader("lighting.vs", "lighting.frag");
+	Shader textureShader("texture.vs", "texture.frag");
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
 	GLfloat vertices[] = {
@@ -146,38 +148,7 @@ int main()
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 
-	// Set up floating point framebuffer to render scene to
-	GLuint hdrFBO;
-	glGenFramebuffers(1, &hdrFBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-	// - Create 2 floating point color buffers (1 for normal rendering, other for brightness treshold values)
-	GLuint colorBuffers[2];
-	glGenTextures(2, colorBuffers);
-	for (GLuint i = 0; i < 2; i++)
-	{
-		glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, WIDTH, HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);  // We clamp to the edge as the blur filter would otherwise sample repeated texture values!
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		// attach texture to framebuffer
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0);
-	}
-
-	// - Create and attach depth buffer (renderbuffer)
-	GLuint rboDepth;
-	glGenRenderbuffers(1, &rboDepth);
-	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WIDTH, HEIGHT);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-	// - Tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
-	GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-	glDrawBuffers(2, attachments);
-	// - Finally check if framebuffer is complete
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "Framebuffer not complete!" << std::endl;
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	Framebuffer* fullScene = new Framebuffer(WIDTH, HEIGHT, 1);
 
 	// Game loop
 	while (!glfwWindowShouldClose(window))
@@ -191,14 +162,16 @@ int main()
 		glfwPollEvents();
 		do_movement();
 
+		fullScene->setRenderTarget();
+
 		// Clear the colorbuffer
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// Use cooresponding shader when setting uniforms/drawing objects
-		lightingShader.Use();
-		GLint objectColorLoc = glGetUniformLocation(lightingShader.Program, "objectColor");
-		GLint lightColorLoc = glGetUniformLocation(lightingShader.Program, "lightColor");
+		defaultShader.Use();
+		GLint objectColorLoc = glGetUniformLocation(defaultShader.Program, "objectColor");
+		GLint lightColorLoc = glGetUniformLocation(defaultShader.Program, "lightColor");
 		glUniform3f(objectColorLoc, 0.0f, 0.0f, 1.0f);
 		glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
 
@@ -207,9 +180,9 @@ int main()
 		view = camera.GetViewMatrix();
 		glm::mat4 projection = glm::perspective(camera.Zoom, (GLfloat)WIDTH / (GLfloat)HEIGHT, 0.1f, 100.0f);
 		// Get the uniform locations
-		GLint modelLoc = glGetUniformLocation(lightingShader.Program, "model");
-		GLint viewLoc = glGetUniformLocation(lightingShader.Program, "view");
-		GLint projLoc = glGetUniformLocation(lightingShader.Program, "projection");
+		GLint modelLoc = glGetUniformLocation(defaultShader.Program, "model");
+		GLint viewLoc = glGetUniformLocation(defaultShader.Program, "view");
+		GLint projLoc = glGetUniformLocation(defaultShader.Program, "projection");
 		// Pass the matrices to the shader
 		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
@@ -239,12 +212,15 @@ int main()
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 		glBindVertexArray(0);
 
+		fullScene->disableRenderTarget();
+
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
 	}
 
 	// Terminate GLFW, clearing any resources allocated by GLFW.
 	glfwTerminate();
+
 	return 0;
 }
 
