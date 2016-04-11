@@ -214,6 +214,8 @@ int main()
 
 		fullScene->disableRenderTarget();
 
+
+
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
 	}

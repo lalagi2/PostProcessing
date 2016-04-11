@@ -1,10 +1,10 @@
 #version 330 core
-out vec4 color;
 
-uniform vec3 objectColor;
-uniform vec3 lightColor;
+in vec2 Texcoord;
+out vec4 outColor;
+uniform sampler2D text;
 
-void main()
+void main()"
 {
-    color = vec4(lightColor * objectColor, 1.0f);
-}
+    outColor = texture(text, Texcoord);
+};
