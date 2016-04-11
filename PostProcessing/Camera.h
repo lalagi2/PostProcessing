@@ -89,7 +89,7 @@ public:
 		this->Yaw += xoffset;
 		this->Pitch += yoffset;
 
-		std::cout << this->Yaw << " " << this->Pitch << std::endl;
+		//std::cout << this->Yaw << " " << this->Pitch << std::endl;
 	
 
 		// Make sure that when pitch is out of bounds, screen doesn't get flipped

@@ -40,7 +40,6 @@ glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 GLfloat deltaTime = 0.0f;	// Time between current frame and last frame
 GLfloat lastFrame = 0.0f;  	// Time of last frame
 
-// The MAIN function, from here we start the application and run the game loop
 int main()
 {
 	// Init GLFW
@@ -73,7 +72,6 @@ int main()
 
 	// OpenGL options
 	glEnable(GL_DEPTH_TEST);
-
 
 	// Build and compile our shader program
 	Shader lightingShader("default.vs", "default.frag");
@@ -148,6 +146,38 @@ int main()
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 
+	// Set up floating point framebuffer to render scene to
+	GLuint hdrFBO;
+	glGenFramebuffers(1, &hdrFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+	// - Create 2 floating point color buffers (1 for normal rendering, other for brightness treshold values)
+	GLuint colorBuffers[2];
+	glGenTextures(2, colorBuffers);
+	for (GLuint i = 0; i < 2; i++)
+	{
+		glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, WIDTH, HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);  // We clamp to the edge as the blur filter would otherwise sample repeated texture values!
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		// attach texture to framebuffer
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0);
+	}
+
+	// - Create and attach depth buffer (renderbuffer)
+	GLuint rboDepth;
+	glGenRenderbuffers(1, &rboDepth);
+	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WIDTH, HEIGHT);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+	// - Tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+	GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+	glDrawBuffers(2, attachments);
+	// - Finally check if framebuffer is complete
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "Framebuffer not complete!" << std::endl;
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// Game loop
 	while (!glfwWindowShouldClose(window))
