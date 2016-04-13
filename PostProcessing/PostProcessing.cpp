@@ -41,6 +41,72 @@ glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 GLfloat deltaTime = 0.0f;	// Time between current frame and last frame
 GLfloat lastFrame = 0.0f;  	// Time of last frame
 
+void finalTexturing(Shader& textureShader, Framebuffer* fullSceneFrameBuffer)
+{
+	GLuint vao;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+
+	GLuint vbo = 0;
+	glGenBuffers(1, &vbo);
+
+	GLfloat vertices[] =
+	{
+		//  Position          Color          Texcoords
+		-1.0f, 1.0f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // Top-left
+		1.0f, 1.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, // Top-right
+		1.0f, -1.0f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // Bottom-right
+		-1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f  // Bottom-left
+	};
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	// Create an element array
+	GLuint ebo;
+	glGenBuffers(1, &ebo);
+
+	GLuint elements[] =
+	{
+		0, 1, 2,
+		2, 3, 0
+	};
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
+
+	textureShader.Use();
+
+	// Specify the layout of the vertex data
+	GLint posAttrib = glGetAttribLocation(textureShader.Program, "position");
+	glEnableVertexAttribArray(posAttrib);
+	glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), 0);
+
+	GLint colAttrib = glGetAttribLocation(textureShader.Program, "color");
+	glEnableVertexAttribArray(colAttrib);
+	glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+
+	GLint texAttrib = glGetAttribLocation(textureShader.Program, "texcoord");
+	glEnableVertexAttribArray(texAttrib);
+	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, fullSceneFrameBuffer->getHandle());
+	glUniform1i(glGetUniformLocation(textureShader.Program, "text"), 0);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	// Clear the screen to black
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// Draw a rectangle from the 2 triangles using 6 indices
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
 int main()
 {
 	// Init GLFW
@@ -78,6 +144,8 @@ int main()
 	Shader defaultShader("default.vs", "default.frag");
 	Shader lampShader("lighting.vs", "lighting.frag");
 	Shader textureShader("texture.vs", "texture.frag");
+
+	Framebuffer* fullSceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 1);
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
 	GLfloat vertices[] = {
@@ -148,8 +216,6 @@ int main()
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 
-	Framebuffer* fullSceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 1);
-
 	// Game loop
 	while (!glfwWindowShouldClose(window))
 	{
@@ -216,69 +282,7 @@ int main()
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-		GLuint vao;
-		glGenVertexArrays(1, &vao);
-		glBindVertexArray(vao);
-
-		GLuint vbo = 0;
-		glGenBuffers(1, &vbo);
-
-		GLfloat vertices[] =
-		{
-			//  Position          Color          Texcoords
-			-1.0f, 1.0f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // Top-left
-			1.0f, 1.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, // Top-right
-			1.0f, -1.0f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // Bottom-right
-			-1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f  // Bottom-left
-		};
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-		// Create an element array
-		GLuint ebo;
-		glGenBuffers(1, &ebo);
-
-		GLuint elements[] =
-		{
-			0, 1, 2,
-			2, 3, 0
-		};
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
-
-		textureShader.Use();
-
-		// Specify the layout of the vertex data
-		GLint posAttrib = glGetAttribLocation(textureShader.Program, "position");
-		glEnableVertexAttribArray(posAttrib);
-		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), 0);
-
-		GLint colAttrib = glGetAttribLocation(textureShader.Program, "color");
-		glEnableVertexAttribArray(colAttrib);
-		glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-
-		GLint texAttrib = glGetAttribLocation(textureShader.Program, "texcoord");
-		glEnableVertexAttribArray(texAttrib);
-		glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, fullSceneFrameBuffer->getHandle());
-		glUniform1i(glGetUniformLocation(textureShader.Program, "text"), 0);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		// Clear the screen to black
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		// Draw a rectangle from the 2 triangles using 6 indices
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		finalTexturing(textureShader, fullSceneFrameBuffer);
 
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
