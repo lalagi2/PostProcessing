@@ -91,13 +91,8 @@ void finalTexturing(Shader& textureShader, Framebuffer* fullSceneFrameBuffer)
 	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, fullSceneFrameBuffer->getHandle());
+	glBindTexture(GL_TEXTURE_2D, fullSceneFrameBuffer->getColorBuffer(0));
 	glUniform1i(glGetUniformLocation(textureShader.Program, "text"), 0);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	// Clear the screen to black
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -145,7 +140,7 @@ int main()
 	Shader lampShader("lighting.vs", "lighting.frag");
 	Shader textureShader("texture.vs", "texture.frag");
 
-	Framebuffer* fullSceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 1);
+	Framebuffer* fullSceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 2);
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
 	GLfloat vertices[] = {
@@ -231,7 +226,7 @@ int main()
 		fullSceneFrameBuffer->setRenderTarget();
 
 		// Clear the colorbuffer
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// Use cooresponding shader when setting uniforms/drawing objects
