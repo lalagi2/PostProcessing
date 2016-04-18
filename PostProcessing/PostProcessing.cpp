@@ -73,7 +73,7 @@ void RenderQuad()
 	glBindVertexArray(0);
 }
 
-void finalTexturing(Shader& textureShader, Framebuffer* sceneFrameBuffer)
+void finalTexturing(Shader& textureShader, GLuint sceneFrameBuffer)
 {
 	GLuint vao;
 	glGenVertexArrays(1, &vao);
@@ -123,7 +123,7 @@ void finalTexturing(Shader& textureShader, Framebuffer* sceneFrameBuffer)
 	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, sceneFrameBuffer->getColorBuffer(0));
+	glBindTexture(GL_TEXTURE_2D, sceneFrameBuffer);
 	glUniform1i(glGetUniformLocation(textureShader.Program, "text"), 0);
 
 	// Clear the screen to black
@@ -247,6 +247,26 @@ int main()
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 
+	// Ping pong framebuffer for blurring
+	GLuint pingpongFBO[2];
+	GLuint pingpongColorbuffers[2];
+	glGenFramebuffers(2, pingpongFBO);
+	glGenTextures(2, pingpongColorbuffers);
+	for (GLuint i = 0; i < 2; i++)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+		glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, WIDTH, HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // We clamp to the edge as the blur filter would otherwise sample repeated texture values!
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongColorbuffers[i], 0);
+		// Also check if framebuffers are complete (no need for depth buffer)
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			std::cout << "Framebuffer not complete!" << std::endl;
+	}
+
 	// Game loop
 	while (!glfwWindowShouldClose(window))
 	{
@@ -314,40 +334,22 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		GLboolean horizontal = true, first_iteration = true;
-		GLuint amount = 1000;
+		GLuint amount = 100;
 		shaderBlur.Use();
-			for (GLuint i = 0; i < amount; i++)
-			{
-				if (horizontal)
-				{
-					horizontalBlur->setRenderTarget();
-						glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
-						glBindTexture(GL_TEXTURE_2D, first_iteration ? sceneFrameBuffer->getColorBuffer(1) : verticalBlur->getColorBuffer(0));
-						RenderQuad();
-						if (first_iteration)
-							first_iteration = false;
+		for (GLuint i = 0; i < amount; i++)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+			glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
+			glBindTexture(GL_TEXTURE_2D, first_iteration ? sceneFrameBuffer->getColorBuffer(0) : pingpongColorbuffers[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
+			RenderQuad();
+			horizontal = !horizontal;
+			if (first_iteration)
+				first_iteration = false;
+		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-					horizontalBlur->disableRenderTarget();
 
-				}
-				
-				else if (!horizontal)
-				{
-					verticalBlur->setRenderTarget();
-						glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
-						glBindTexture(GL_TEXTURE_2D, horizontalBlur->getColorBuffer(0));
-						RenderQuad();
-
-					verticalBlur->disableRenderTarget();
-
-				}
-
-				horizontal = !horizontal;
-			}
-
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			finalTexturing(textureShader, horizontalBlur);
+		finalTexturing(textureShader, pingpongColorbuffers[0]);
 
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
