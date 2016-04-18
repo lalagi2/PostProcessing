@@ -41,7 +41,39 @@ glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 GLfloat deltaTime = 0.0f;	// Time between current frame and last frame
 GLfloat lastFrame = 0.0f;  	// Time of last frame
 
-void finalTexturing(Shader& textureShader, Framebuffer* fullSceneFrameBuffer)
+// RenderQuad() Renders a 1x1 quad in NDC, best used for framebuffer color targets
+// and post-processing effects.
+GLuint quadVAO = 0;
+GLuint quadVBO;
+void RenderQuad()
+{
+	if (quadVAO == 0)
+	{
+		GLfloat quadVertices[] = {
+			// Positions        // Texture Coords
+			-1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+			-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+			1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+			1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		};
+		// Setup plane VAO
+		glGenVertexArrays(1, &quadVAO);
+		glGenBuffers(1, &quadVBO);
+		glBindVertexArray(quadVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	}
+
+	glBindVertexArray(quadVAO);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glBindVertexArray(0);
+}
+
+void finalTexturing(Shader& textureShader, Framebuffer* sceneFrameBuffer)
 {
 	GLuint vao;
 	glGenVertexArrays(1, &vao);
@@ -91,7 +123,7 @@ void finalTexturing(Shader& textureShader, Framebuffer* fullSceneFrameBuffer)
 	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, fullSceneFrameBuffer->getColorBuffer(0));
+	glBindTexture(GL_TEXTURE_2D, sceneFrameBuffer->getColorBuffer(0));
 	glUniform1i(glGetUniformLocation(textureShader.Program, "text"), 0);
 
 	// Clear the screen to black
@@ -106,6 +138,7 @@ int main()
 {
 	// Init GLFW
 	glfwInit();
+
 	// Set all the required options for GLFW
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -139,8 +172,11 @@ int main()
 	Shader defaultShader("default.vs", "default.frag");
 	Shader lampShader("lighting.vs", "lighting.frag");
 	Shader textureShader("texture.vs", "texture.frag");
+	Shader shaderBlur("blur.vs", "blur.frag");
 
-	Framebuffer* fullSceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 2);
+	Framebuffer* sceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 2);
+	Framebuffer* horizontalBlur = new Framebuffer(WIDTH, HEIGHT, 1);
+	Framebuffer* verticalBlur = new Framebuffer(WIDTH, HEIGHT, 1);
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
 	GLfloat vertices[] = {
@@ -223,61 +259,95 @@ int main()
 		glfwPollEvents();
 		do_movement();
 
-		fullSceneFrameBuffer->setRenderTarget();
+		sceneFrameBuffer->setRenderTarget();
 
-		// Clear the colorbuffer
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			// Clear the colorbuffer
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			// Use cooresponding shader when setting uniforms/drawing objects
+			defaultShader.Use();
+				GLint objectColorLoc = glGetUniformLocation(defaultShader.Program, "objectColor");
+				GLint lightColorLoc = glGetUniformLocation(defaultShader.Program, "lightColor");
+				glUniform3f(objectColorLoc, 0.0f, 0.0f, 1.0f);
+				glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
+
+				// Create camera transformations
+				glm::mat4 view;
+				view = camera.GetViewMatrix();
+				glm::mat4 projection = glm::perspective(camera.Zoom, (GLfloat)WIDTH / (GLfloat)HEIGHT, 0.1f, 100.0f);
+				// Get the uniform locations
+				GLint modelLoc = glGetUniformLocation(defaultShader.Program, "model");
+				GLint viewLoc = glGetUniformLocation(defaultShader.Program, "view");
+				GLint projLoc = glGetUniformLocation(defaultShader.Program, "projection");
+				// Pass the matrices to the shader
+				glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+				glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+				// Draw the container (using container's vertex attributes)
+				glBindVertexArray(containerVAO);
+				glm::mat4 model;
+				glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+				glDrawArrays(GL_TRIANGLES, 0, 36);
+				glBindVertexArray(0);
+
+			// Also draw the lamp object, again binding the appropriate shader
+			lampShader.Use();
+				// Get location objects for the matrices on the lamp shader (these could be different on a different shader)
+				modelLoc = glGetUniformLocation(lampShader.Program, "model");
+				viewLoc = glGetUniformLocation(lampShader.Program, "view");
+				projLoc = glGetUniformLocation(lampShader.Program, "projection");
+				// Set matrices
+				glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+				glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+				model = glm::mat4();
+				model = glm::translate(model, lightPos);
+				model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
+				glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+				// Draw the light object (using light's vertex attributes)
+				glBindVertexArray(lightVAO);
+				glDrawArrays(GL_TRIANGLES, 0, 36);
+				glBindVertexArray(0);
+
+		sceneFrameBuffer->disableRenderTarget();
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// Use cooresponding shader when setting uniforms/drawing objects
-		defaultShader.Use();
-		GLint objectColorLoc = glGetUniformLocation(defaultShader.Program, "objectColor");
-		GLint lightColorLoc = glGetUniformLocation(defaultShader.Program, "lightColor");
-		glUniform3f(objectColorLoc, 0.0f, 0.0f, 1.0f);
-		glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
+		GLboolean horizontal = true, first_iteration = true;
+		GLuint amount = 1000;
+		shaderBlur.Use();
+			for (GLuint i = 0; i < amount; i++)
+			{
+				if (horizontal)
+				{
+					horizontalBlur->setRenderTarget();
+						glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
+						glBindTexture(GL_TEXTURE_2D, first_iteration ? sceneFrameBuffer->getColorBuffer(1) : verticalBlur->getColorBuffer(0));
+						RenderQuad();
+						if (first_iteration)
+							first_iteration = false;
 
-		// Create camera transformations
-		glm::mat4 view;
-		view = camera.GetViewMatrix();
-		glm::mat4 projection = glm::perspective(camera.Zoom, (GLfloat)WIDTH / (GLfloat)HEIGHT, 0.1f, 100.0f);
-		// Get the uniform locations
-		GLint modelLoc = glGetUniformLocation(defaultShader.Program, "model");
-		GLint viewLoc = glGetUniformLocation(defaultShader.Program, "view");
-		GLint projLoc = glGetUniformLocation(defaultShader.Program, "projection");
-		// Pass the matrices to the shader
-		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+					horizontalBlur->disableRenderTarget();
 
-		// Draw the container (using container's vertex attributes)
-		glBindVertexArray(containerVAO);
-		glm::mat4 model;
-		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		glBindVertexArray(0);
+				}
+				
+				else if (!horizontal)
+				{
+					verticalBlur->setRenderTarget();
+						glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
+						glBindTexture(GL_TEXTURE_2D, horizontalBlur->getColorBuffer(0));
+						RenderQuad();
 
-		// Also draw the lamp object, again binding the appropriate shader
-		lampShader.Use();
-		// Get location objects for the matrices on the lamp shader (these could be different on a different shader)
-		modelLoc = glGetUniformLocation(lampShader.Program, "model");
-		viewLoc = glGetUniformLocation(lampShader.Program, "view");
-		projLoc = glGetUniformLocation(lampShader.Program, "projection");
-		// Set matrices
-		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-		model = glm::mat4();
-		model = glm::translate(model, lightPos);
-		model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
-		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-		// Draw the light object (using light's vertex attributes)
-		glBindVertexArray(lightVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		glBindVertexArray(0);
+					verticalBlur->disableRenderTarget();
 
-		fullSceneFrameBuffer->disableRenderTarget();
+				}
 
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				horizontal = !horizontal;
+			}
 
-		finalTexturing(textureShader, fullSceneFrameBuffer);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			finalTexturing(textureShader, horizontalBlur);
 
 		// Swap the screen buffers
 		glfwSwapBuffers(window);

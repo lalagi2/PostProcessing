@@ -99,6 +99,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="blur.frag" />
+    <None Include="blur.vs" />
     <None Include="default.frag" />
     <None Include="default.vs" />
     <None Include="lighting.frag" />
