@@ -51,10 +51,10 @@ void RenderQuad()
 	{
 		GLfloat quadVertices[] = {
 			// Positions        // Texture Coords
-			-1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-			-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-			1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-			1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+			-1.0f, 1.0f, 0.5f, 0.0f, 1.0f,
+			-1.0f, -1.0f, 0.5f, 0.0f, 0.0f,
+			1.0f, 1.0f, 0.5f, 1.0f, 1.0f,
+			1.0f, -1.0f, 0.5f, 1.0f, 0.0f,
 		};
 		// Setup plane VAO
 		glGenVertexArrays(1, &quadVAO);
@@ -168,15 +168,15 @@ int main()
 	// OpenGL options
 	glEnable(GL_DEPTH_TEST);
 
-	// Build and compile our shader program
+	// Shader objects
 	Shader defaultShader("default.vs", "default.frag");
 	Shader lampShader("lighting.vs", "lighting.frag");
 	Shader textureShader("texture.vs", "texture.frag");
 	Shader shaderBlur("blur.vs", "blur.frag");
 
-	Framebuffer* sceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 2);
-	Framebuffer* horizontalBlur = new Framebuffer(WIDTH, HEIGHT, 1);
-	Framebuffer* verticalBlur = new Framebuffer(WIDTH, HEIGHT, 1);
+	Framebuffer* sceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 2, false, true);
+	Framebuffer* horizontalBlur = new Framebuffer(WIDTH, HEIGHT, 1, false, true);
+	Framebuffer* verticalBlur = new Framebuffer(WIDTH, HEIGHT, 1, false, true);
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
 	GLfloat vertices[] = {
@@ -334,10 +334,32 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		GLboolean horizontal = true, first_iteration = true;
-		GLuint amount = 100;
+		GLuint amount = 20;
+
 		shaderBlur.Use();
 		for (GLuint i = 0; i < amount; i++)
 		{
+			/*if (horizontal)
+			{
+				horizontalBlur->setRenderTarget();
+				glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
+				glBindTexture(GL_TEXTURE_2D, first_iteration ? sceneFrameBuffer->getColorBuffer(0) : verticalBlur->getColorBuffer(0));
+				RenderQuad();
+				horizontal = !horizontal;
+				if (first_iteration)
+					first_iteration = false;
+			}
+			else
+			{
+				verticalBlur->setRenderTarget();
+				glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
+				glBindTexture(GL_TEXTURE_2D, first_iteration ? sceneFrameBuffer->getColorBuffer(0) : horizontalBlur->getColorBuffer(0));
+				RenderQuad();
+				horizontal = !horizontal;
+				if (first_iteration)
+					first_iteration = false;
+			}*/
+
 			glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
 			glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
 			glBindTexture(GL_TEXTURE_2D, first_iteration ? sceneFrameBuffer->getColorBuffer(0) : pingpongColorbuffers[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
@@ -346,10 +368,10 @@ int main()
 			if (first_iteration)
 				first_iteration = false;
 		}
+
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
-		finalTexturing(textureShader, pingpongColorbuffers[0]);
+		finalTexturing(textureShader, pingpongColorbuffers[!horizontal]);
 
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
