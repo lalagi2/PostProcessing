@@ -146,7 +146,7 @@ int main()
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
 	// Create a GLFWwindow object that we can use for GLFW's functions
-	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "LearnOpenGL", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Bloom", nullptr, nullptr);
 	glfwMakeContextCurrent(window);
 
 	// Set the required callback functions
@@ -175,97 +175,7 @@ int main()
 	Shader shaderBlur("blur.vs", "blur.frag");
 
 	Framebuffer* sceneFrameBuffer = new Framebuffer(WIDTH, HEIGHT, 2, false, true);
-	Framebuffer* horizontalBlur = new Framebuffer(WIDTH, HEIGHT, 1, false, true);
-	Framebuffer* verticalBlur = new Framebuffer(WIDTH, HEIGHT, 1, false, true);
-
-	// Set up vertex data (and buffer(s)) and attribute pointers
-	GLfloat vertices[] = {
-		-0.5f, -0.5f, -0.5f,
-		0.5f, -0.5f, -0.5f,
-		0.5f, 0.5f, -0.5f,
-		0.5f, 0.5f, -0.5f,
-		-0.5f, 0.5f, -0.5f,
-		-0.5f, -0.5f, -0.5f,
-
-		-0.5f, -0.5f, 0.5f,
-		0.5f, -0.5f, 0.5f,
-		0.5f, 0.5f, 0.5f,
-		0.5f, 0.5f, 0.5f,
-		-0.5f, 0.5f, 0.5f,
-		-0.5f, -0.5f, 0.5f,
-
-		-0.5f, 0.5f, 0.5f,
-		-0.5f, 0.5f, -0.5f,
-		-0.5f, -0.5f, -0.5f,
-		-0.5f, -0.5f, -0.5f,
-		-0.5f, -0.5f, 0.5f,
-		-0.5f, 0.5f, 0.5f,
-
-		0.5f, 0.5f, 0.5f,
-		0.5f, 0.5f, -0.5f,
-		0.5f, -0.5f, -0.5f,
-		0.5f, -0.5f, -0.5f,
-		0.5f, -0.5f, 0.5f,
-		0.5f, 0.5f, 0.5f,
-
-		-0.5f, -0.5f, -0.5f,
-		0.5f, -0.5f, -0.5f,
-		0.5f, -0.5f, 0.5f,
-		0.5f, -0.5f, 0.5f,
-		-0.5f, -0.5f, 0.5f,
-		-0.5f, -0.5f, -0.5f,
-
-		-0.5f, 0.5f, -0.5f,
-		0.5f, 0.5f, -0.5f,
-		0.5f, 0.5f, 0.5f,
-		0.5f, 0.5f, 0.5f,
-		-0.5f, 0.5f, 0.5f,
-		-0.5f, 0.5f, -0.5f
-	};
-	// First, set the container's VAO (and VBO)
-	GLuint VBO, containerVAO;
-	glGenVertexArrays(1, &containerVAO);
-	glGenBuffers(1, &VBO);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	glBindVertexArray(containerVAO);
-	// Position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(0);
-
-	// Then, we set the light's VAO (VBO stays the same. After all, the vertices are the same for the light object (also a 3D cube))
-	GLuint lightVAO;
-	glGenVertexArrays(1, &lightVAO);
-	glBindVertexArray(lightVAO);
-	// We only need to bind to the VBO (to link it with glVertexAttribPointer), no need to fill it; the VBO's data already contains all we need.
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	// Set the vertex attributes (only position data for the lamp))
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(0);
-
-	// Ping pong framebuffer for blurring
-	GLuint pingpongFBO[2];
-	GLuint pingpongColorbuffers[2];
-	glGenFramebuffers(2, pingpongFBO);
-	glGenTextures(2, pingpongColorbuffers);
-	for (GLuint i = 0; i < 2; i++)
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
-		glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[i]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, WIDTH, HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // We clamp to the edge as the blur filter would otherwise sample repeated texture values!
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongColorbuffers[i], 0);
-		// Also check if framebuffers are complete (no need for depth buffer)
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-			std::cout << "Framebuffer not complete!" << std::endl;
-	}
+	
 
 	// Game loop
 	while (!glfwWindowShouldClose(window))
@@ -277,101 +187,12 @@ int main()
 
 		// Check if any events have been activiated (key pressed, mouse moved etc.) and call corresponding response functions
 		glfwPollEvents();
-		do_movement();
-
+		
 		sceneFrameBuffer->setRenderTarget();
-
-			// Clear the colorbuffer
-			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			// Use cooresponding shader when setting uniforms/drawing objects
-			defaultShader.Use();
-				GLint objectColorLoc = glGetUniformLocation(defaultShader.Program, "objectColor");
-				GLint lightColorLoc = glGetUniformLocation(defaultShader.Program, "lightColor");
-				glUniform3f(objectColorLoc, 0.0f, 0.0f, 1.0f);
-				glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
-
-				// Create camera transformations
-				glm::mat4 view;
-				view = camera.GetViewMatrix();
-				glm::mat4 projection = glm::perspective(camera.Zoom, (GLfloat)WIDTH / (GLfloat)HEIGHT, 0.1f, 100.0f);
-				// Get the uniform locations
-				GLint modelLoc = glGetUniformLocation(defaultShader.Program, "model");
-				GLint viewLoc = glGetUniformLocation(defaultShader.Program, "view");
-				GLint projLoc = glGetUniformLocation(defaultShader.Program, "projection");
-				// Pass the matrices to the shader
-				glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-				glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-				// Draw the container (using container's vertex attributes)
-				glBindVertexArray(containerVAO);
-				glm::mat4 model;
-				glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-				glDrawArrays(GL_TRIANGLES, 0, 36);
-				glBindVertexArray(0);
-
-			// Also draw the lamp object, again binding the appropriate shader
-			lampShader.Use();
-				// Get location objects for the matrices on the lamp shader (these could be different on a different shader)
-				modelLoc = glGetUniformLocation(lampShader.Program, "model");
-				viewLoc = glGetUniformLocation(lampShader.Program, "view");
-				projLoc = glGetUniformLocation(lampShader.Program, "projection");
-				// Set matrices
-				glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-				glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-				model = glm::mat4();
-				model = glm::translate(model, lightPos);
-				model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
-				glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-				// Draw the light object (using light's vertex attributes)
-				glBindVertexArray(lightVAO);
-				glDrawArrays(GL_TRIANGLES, 0, 36);
-				glBindVertexArray(0);
-
+			
 		sceneFrameBuffer->disableRenderTarget();
 
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		GLboolean horizontal = true, first_iteration = true;
-		GLuint amount = 20;
-
-		shaderBlur.Use();
-		for (GLuint i = 0; i < amount; i++)
-		{
-			/*if (horizontal)
-			{
-				horizontalBlur->setRenderTarget();
-				glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
-				glBindTexture(GL_TEXTURE_2D, first_iteration ? sceneFrameBuffer->getColorBuffer(0) : verticalBlur->getColorBuffer(0));
-				RenderQuad();
-				horizontal = !horizontal;
-				if (first_iteration)
-					first_iteration = false;
-			}
-			else
-			{
-				verticalBlur->setRenderTarget();
-				glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
-				glBindTexture(GL_TEXTURE_2D, first_iteration ? sceneFrameBuffer->getColorBuffer(0) : horizontalBlur->getColorBuffer(0));
-				RenderQuad();
-				horizontal = !horizontal;
-				if (first_iteration)
-					first_iteration = false;
-			}*/
-
-			glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
-			glUniform1i(glGetUniformLocation(shaderBlur.Program, "horizontal"), horizontal);
-			glBindTexture(GL_TEXTURE_2D, first_iteration ? sceneFrameBuffer->getColorBuffer(0) : pingpongColorbuffers[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
-			RenderQuad();
-			horizontal = !horizontal;
-			if (first_iteration)
-				first_iteration = false;
-		}
-
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		finalTexturing(textureShader, pingpongColorbuffers[!horizontal]);
 
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
