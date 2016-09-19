@@ -65,30 +65,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="default.frag">
-      <Filter>Shader</Filter>
-    </None>
-    <None Include="default.vs">
-      <Filter>Shader</Filter>
-    </None>
-    <None Include="lighting.frag">
-      <Filter>Shader</Filter>
-    </None>
-    <None Include="lighting.vs">
-      <Filter>Shader</Filter>
-    </None>
-    <None Include="texture.frag">
-      <Filter>Shader</Filter>
-    </None>
-    <None Include="texture.vs">
-      <Filter>Shader</Filter>
-    </None>
-    <None Include="blur.frag">
-      <Filter>Shader</Filter>
-    </None>
-    <None Include="blur.vs">
-      <Filter>Shader</Filter>
-    </None>
     <None Include="advect.fs">
       <Filter>Shader</Filter>
     </None>

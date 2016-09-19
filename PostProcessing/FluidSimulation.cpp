@@ -67,6 +67,25 @@ GLuint CreateQuad()
 	return vao;
 }
 
+void createGravityField()
+{
+	Shader makeGravity("defaultVS.vs", "gravityField.fs");
+
+	glBindFramebuffer(GL_FRAMEBUFFER, gravity.FboHandle);
+	makeGravity.Use();
+
+	GLint gravityLoc = glGetUniformLocation(makeGravity.Program, "gravity");
+	glUniform2f(gravityLoc, 0.0f, 1.0f);  // X = 0.0, Y = 1.0
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	ResetState();
+}
+
+void initDensity()
+{
+
+}
+
 void SwapSurfaces(PingPongTexture* slab)
 {
 	Surface temp = slab->Ping;
@@ -79,25 +98,18 @@ void initialize()
 	QuadVao = CreateQuad();
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	Shader makeGravity("defaultVS.vs", "gravityField.fs");
-
 	velocity = createPingPongTexture(WIDTH, HEIGHT, 2);
 	density = createPingPongTexture(WIDTH, HEIGHT, 1);
 	pressure = createPingPongTexture(WIDTH, HEIGHT, 1);
 
 	divergence = createSurface(WIDTH, HEIGHT, 3);
 	obstacle = createSurface(WIDTH, HEIGHT, 3);
-	gravity = createSurface(WIDTH, HEIGHT, 1);
+	gravity = createSurface(WIDTH, HEIGHT, 2);
 
-	glBindVertexArray(QuadVao);
-	glBindFramebuffer(GL_FRAMEBUFFER, gravity.FboHandle);
-	makeGravity.Use();
+	createGravityField();
+	initDensity();
 
-	GLint gravityLoc = glGetUniformLocation(makeGravity.Program, "gravity");
-	glUniform2f(gravityLoc, 10.0f, 0.0f);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-	//createObstacles(obstacle, WIDTH, HEIGHT);
+	createObstacles(obstacle, WIDTH, HEIGHT);
 
 	ResetState();
 }
@@ -114,7 +126,7 @@ void render(Shader& visualizeProgram)
 	GLint fillColor = glGetUniformLocation(visualizeProgram.Program, "FillColor");
 	GLint scale = glGetUniformLocation(visualizeProgram.Program, "Scale");
 
-	//glEnable(GL_BLEND);
+	glEnable(GL_BLEND);
 
 	glViewport(0, 0, WIDTH, HEIGHT);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -125,7 +137,7 @@ void render(Shader& visualizeProgram)
 	glBindVertexArray(QuadVao);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-	//glDisable(GL_BLEND);
+	glDisable(GL_BLEND);
 }
 
 int main()
