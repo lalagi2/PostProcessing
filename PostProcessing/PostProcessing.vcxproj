@@ -104,15 +104,22 @@
     <ClCompile Include="TextureHandler.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="advect.fs" />
     <None Include="blur.frag" />
     <None Include="blur.vs" />
+    <None Include="computeDivergence.fs" />
     <None Include="default.frag" />
     <None Include="default.vs" />
+    <None Include="defaultVS.vs" />
+    <None Include="fill.fs" />
+    <None Include="gravityField.fs" />
+    <None Include="jacobi.fs" />
     <None Include="lighting.frag" />
     <None Include="lighting.vs" />
     <None Include="packages.config" />
     <None Include="texture.frag" />
     <None Include="texture.vs" />
+    <None Include="visualize.fs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

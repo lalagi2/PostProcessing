@@ -40,13 +40,13 @@ Surface createSurface(GLsizei width, GLsizei height, int numComponents)
 		}
 	}
 
-	//if (GL_NO_ERROR != glGetError()) std::cout << "Unable to create normals texture";
+	if (GL_NO_ERROR != glGetError()) std::cout << "Unable to create normals texture";
 
 	GLuint colorbuffer;
 	glGenRenderbuffers(1, &colorbuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureHandle, 0);
-	//if (GL_NO_ERROR != glGetError()) std::cout << "Unable to attach color buffer";
+	if (GL_NO_ERROR != glGetError()) std::cout << "Unable to attach color buffer";
 
 	if (GL_FRAMEBUFFER_COMPLETE != glCheckFramebufferStatus(GL_FRAMEBUFFER)) std::cout << "Unable to create FBO.";
 	Surface surface = { fboHandle, textureHandle, numComponents };

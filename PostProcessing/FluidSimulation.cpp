@@ -67,8 +67,18 @@ GLuint CreateQuad()
 	return vao;
 }
 
+void SwapSurfaces(PingPongTexture* slab)
+{
+	Surface temp = slab->Ping;
+	slab->Ping = slab->Pong;
+	slab->Pong = temp;
+}
+
 void initialize()
 {
+	QuadVao = CreateQuad();
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	Shader makeGravity("defaultVS.vs", "gravityField.fs");
 
 	velocity = createPingPongTexture(WIDTH, HEIGHT, 2);
@@ -79,27 +89,17 @@ void initialize()
 	obstacle = createSurface(WIDTH, HEIGHT, 3);
 	gravity = createSurface(WIDTH, HEIGHT, 1);
 
+	glBindVertexArray(QuadVao);
 	glBindFramebuffer(GL_FRAMEBUFFER, gravity.FboHandle);
-	glClearColor(10, 0, 0, 1);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	/*makeGravity.Use();
+	makeGravity.Use();
 
 	GLint gravityLoc = glGetUniformLocation(makeGravity.Program, "gravity");
 	glUniform2f(gravityLoc, 10.0f, 0.0f);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, gravity.FboHandle);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gravity.TextureHandle);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-
-	createObstacles(obstacle, WIDTH, HEIGHT);*/
+	//createObstacles(obstacle, WIDTH, HEIGHT);
 
 	ResetState();
-
-	QuadVao = CreateQuad();
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void update(unsigned int elapsedMs)
@@ -114,19 +114,18 @@ void render(Shader& visualizeProgram)
 	GLint fillColor = glGetUniformLocation(visualizeProgram.Program, "FillColor");
 	GLint scale = glGetUniformLocation(visualizeProgram.Program, "Scale");
 
-	glEnable(GL_BLEND);
+	//glEnable(GL_BLEND);
 
 	glViewport(0, 0, WIDTH, HEIGHT);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glClearColor(0, 0, 0, 1);
-	glClear(GL_COLOR_BUFFER_BIT);
-
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, gravity.TextureHandle);
 	glUniform3f(fillColor, 1.0, 1.0, 1.0);
 	glUniform2f(scale, 1.0f / WIDTH, 1.0f / HEIGHT);
+	glBindVertexArray(QuadVao);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-	glDisable(GL_BLEND);
+	//glDisable(GL_BLEND);
 }
 
 int main()
@@ -135,9 +134,6 @@ int main()
 	glfwInit();
 
 	// Set all the required options for GLFW
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
 	// Create a GLFWwindow object that we can use for GLFW's functions
@@ -161,7 +157,7 @@ int main()
 	glViewport(0, 0, WIDTH, HEIGHT);
 
 	// OpenGL options
-	glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_DEPTH_TEST);
 
 	initialize();
 
