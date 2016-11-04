@@ -14,12 +14,14 @@ void main()
 {
     vec2 fragCoord = gl_FragCoord.xy;
     float solid = texture(Obstacles, InverseSize * fragCoord).x;
-    if (solid > 0) {
-        FragColor = vec4(1.0, 1.0, 0.0, 0.0);
+    if (solid > 0) 
+	{
+        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+
         return;
     }
 
     vec2 u = texture(VelocityTexture, InverseSize * fragCoord).xy;
-    vec2 coord = InverseSize * (fragCoord - TimeStep * u);
+    vec2 coord = InverseSize * (fragCoord );//- TimeStep * u);
     FragColor = Dissipation * texture(SourceTexture, coord);
 }

@@ -19,7 +19,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -104,13 +104,16 @@
     <ClCompile Include="TextureHandler.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="addGravity.fs" />
     <None Include="advect.fs" />
     <None Include="computeDivergence.fs" />
     <None Include="defaultVS.vs" />
+    <None Include="densityField.fs" />
     <None Include="fill.fs" />
     <None Include="gravityField.fs" />
     <None Include="jacobi.fs" />
     <None Include="packages.config" />
+    <None Include="subtractGradient.fs" />
     <None Include="visualize.fs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

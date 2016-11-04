@@ -86,5 +86,14 @@
     <None Include="visualize.fs">
       <Filter>Shader</Filter>
     </None>
+    <None Include="densityField.fs">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="subtractGradient.fs">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="addGravity.fs">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
 </Project>

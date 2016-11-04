@@ -6,6 +6,12 @@
 #include "TextureHandler.h"
 #include "Obstacle.h"
 
+#define CellSize (1.25f)
+#define ViewportWidth (800)
+#define ViewportHeight (600)
+#define GridWidth (ViewportWidth / 2)
+#define GridHeight (ViewportHeight / 2)
+
 // Function prototypes
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -70,9 +76,9 @@ GLuint CreateQuad()
 void createGravityField()
 {
 	Shader makeGravity("defaultVS.vs", "gravityField.fs");
+	makeGravity.Use();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, gravity.FboHandle);
-	makeGravity.Use();
 
 	GLint gravityLoc = glGetUniformLocation(makeGravity.Program, "gravity");
 	glUniform2f(gravityLoc, 0.0f, 1.0f);  // X = 0.0, Y = 1.0
@@ -83,7 +89,16 @@ void createGravityField()
 
 void initDensity()
 {
+	Shader makeDensity("defaultVS.vs", "densityField.fs");
+	makeDensity.Use();
 
+	glBindFramebuffer(GL_FRAMEBUFFER, density.Ping.FboHandle);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, density.Pong.FboHandle);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	ResetState();
 }
 
 void SwapSurfaces(PingPongTexture* slab)
@@ -91,6 +106,143 @@ void SwapSurfaces(PingPongTexture* slab)
 	Surface temp = slab->Ping;
 	slab->Ping = slab->Pong;
 	slab->Pong = temp;
+}
+
+void ClearSurface(Surface s, float v)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, s.FboHandle);
+	glClearColor(v, v, v, v);
+	glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void Advect(Surface velocity, Surface source, Surface obstacles, Surface dest, float dissipation)
+{
+	Shader advect("defaultVS.vs", "advect.fs");
+
+	GLuint p = advect.Program;
+	glUseProgram(p);
+	float TimeStep = 0.125f;
+
+	GLint inverseSize = glGetUniformLocation(p, "InverseSize");
+	GLint timeStep = glGetUniformLocation(p, "TimeStep");
+	GLint dissLoc = glGetUniformLocation(p, "Dissipation");
+	GLint sourceTexture = glGetUniformLocation(p, "SourceTexture");
+	GLint obstaclesTexture = glGetUniformLocation(p, "Obstacles");
+
+	glUniform2f(inverseSize, 1.0f / GridWidth * 0.5f, 1.0f / GridHeight * 0.5f);
+	glUniform1f(timeStep, TimeStep);
+	glUniform1f(dissLoc, dissipation);
+	glUniform1i(sourceTexture, 1);
+	glUniform1i(obstaclesTexture, 2);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, velocity.TextureHandle);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, source.TextureHandle);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, obstacles.TextureHandle);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	ResetState();
+}
+
+void ComputeDivergence(Surface velocity, Surface obstacles, Surface dest)
+{
+	Shader computeDivergence("defaultVS.vs", "computeDivergence.fs");
+
+	GLuint p = computeDivergence.Program;
+	glUseProgram(p);
+
+	GLint halfCell = glGetUniformLocation(p, "HalfInverseCellSize");
+	glUniform1f(halfCell, 0.5f / CellSize);
+	GLint sampler = glGetUniformLocation(p, "Obstacles");
+	glUniform1i(sampler, 1);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, velocity.TextureHandle);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, obstacles.TextureHandle);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	ResetState();
+}
+
+void Jacobi(Surface pressure, Surface divergence, Surface obstacles, Surface dest)
+{
+	Shader jacobi("defaultVS.vs", "jacobi.fs");
+
+	GLuint p = jacobi.Program;
+	glUseProgram(p);
+
+	GLint alpha = glGetUniformLocation(p, "Alpha");
+	GLint inverseBeta = glGetUniformLocation(p, "InverseBeta");
+	GLint dSampler = glGetUniformLocation(p, "Divergence");
+	GLint oSampler = glGetUniformLocation(p, "Obstacles");
+
+	glUniform1f(alpha, -CellSize * CellSize);
+	glUniform1f(inverseBeta, 0.25f);
+	glUniform1i(dSampler, 1);
+	glUniform1i(oSampler, 2);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, pressure.TextureHandle);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, divergence.TextureHandle);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, obstacles.TextureHandle);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	ResetState();
+}
+
+void SubtractGradient(Surface velocity, Surface pressure, Surface obstacles, Surface dest)
+{
+	float GradientScale = 1.125f / CellSize;
+
+	Shader subtractGradient("defaultVS.vs", "subtractGradient.fs");
+
+	GLuint p = subtractGradient.Program;
+	glUseProgram(p);
+
+	GLint gradientScale = glGetUniformLocation(p, "GradientScale");
+	glUniform1f(gradientScale, GradientScale);
+	GLint halfCell = glGetUniformLocation(p, "HalfInverseCellSize");
+	glUniform1f(halfCell, 0.5f / CellSize);
+	GLint sampler = glGetUniformLocation(p, "Pressure");
+	glUniform1i(sampler, 1);
+	sampler = glGetUniformLocation(p, "Obstacles");
+	glUniform1i(sampler, 2);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, velocity.TextureHandle);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, pressure.TextureHandle);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, obstacles.TextureHandle);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	ResetState();
+}
+
+void AddForce(Surface velocity)
+{
+	Shader makeGravity("defaultVS.vs", "addGravity.fs");
+	makeGravity.Use();
+
+	GLint inverseSize = glGetUniformLocation(makeGravity.Program, "InverseSize");
+	glUniform2f(inverseSize, 1.0f / GridWidth * 0.5, 1.0f / GridHeight * 0.5);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, velocity.FboHandle);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, velocity.TextureHandle);
+
+	GLint gravityLoc = glGetUniformLocation(makeGravity.Program, "gravity");
+	glUniform2f(gravityLoc, 0.0f, 1.0f);  // X = 0.0, Y = 1.0
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	ResetState();
 }
 
 void initialize()
@@ -110,13 +262,36 @@ void initialize()
 	initDensity();
 
 	createObstacles(obstacle, WIDTH, HEIGHT);
-
 	ResetState();
 }
 
 void update(unsigned int elapsedMs)
 {
-	//std::cout << elapsedMs << std::endl;
+	float velocityDissipation = 0.99f;
+	float densityDissipation = 0.99f;
+	float impulseDensity = 1.0f;
+
+	Advect(velocity.Ping, velocity.Ping, obstacle, velocity.Pong, velocityDissipation);
+	SwapSurfaces(&velocity);
+
+	/*Advect(velocity.Ping, density.Ping, obstacle, density.Pong, densityDissipation);
+	SwapSurfaces(&density);*/
+
+	AddForce(velocity.Ping);
+	SwapSurfaces(&velocity);
+
+	/*ComputeDivergence(velocity.Ping, obstacle, divergence);
+	ClearSurface(pressure.Ping, 0);
+
+	int numJacobiIterations = 40;
+	for (int i = 0; i < numJacobiIterations; i++)
+	{
+		Jacobi(pressure.Ping, divergence, obstacle, pressure.Pong);
+		SwapSurfaces(&pressure);
+	}
+
+	SubtractGradient(velocity.Ping, pressure.Ping, obstacle, velocity.Pong);*/
+	//SwapSurfaces(&velocity);
 }
 
 void render(Shader& visualizeProgram)
@@ -131,7 +306,7 @@ void render(Shader& visualizeProgram)
 	glViewport(0, 0, WIDTH, HEIGHT);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gravity.TextureHandle);
+	glBindTexture(GL_TEXTURE_2D, velocity.Ping.TextureHandle);
 	glUniform3f(fillColor, 1.0, 1.0, 1.0);
 	glUniform2f(scale, 1.0f / WIDTH, 1.0f / HEIGHT);
 	glBindVertexArray(QuadVao);
@@ -174,10 +349,6 @@ int main()
 	initialize();
 
 	Shader vizualizeProgram("defaultVS.vs", "visualize.fs");
-	Shader advect("defaultVS.vs", "advect.fs");
-	Shader jacobi("defaultVS.vs", "jacobi.fs");
-	Shader subtractGradient("defaultVS.vs", "subtractGradient.fs");
-	Shader computeDivergence("defaultVS.vs", "computeDivergence.fs");
 
 	// Game loop
 	while (!glfwWindowShouldClose(window))
@@ -189,14 +360,13 @@ int main()
 		// Check if any events have been activiated (key pressed, mouse moved etc.) and call corresponding response functions
 		glfwPollEvents();
 
-		//update((unsigned int)(deltaTime * 1000));
-
+		update((unsigned int)(deltaTime * 1000));
 		render(vizualizeProgram);
 
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(30));
+		std::this_thread::sleep_for(std::chrono::milliseconds(300));
 		lastFrame = currentFrame;
 	}
 
