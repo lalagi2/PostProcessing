@@ -9,5 +9,5 @@ uniform vec2 Scale;
 void main()
 {
     vec4 t = texture(Sampler, gl_FragCoord.xy * Scale);
-    FragColor = t;
+    FragColor = abs(t);
 }

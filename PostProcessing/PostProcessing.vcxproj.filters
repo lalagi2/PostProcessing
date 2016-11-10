@@ -92,8 +92,5 @@
     <None Include="subtractGradient.fs">
       <Filter>Shader</Filter>
     </None>
-    <None Include="addGravity.fs">
-      <Filter>Shader</Filter>
-    </None>
   </ItemGroup>
 </Project>
